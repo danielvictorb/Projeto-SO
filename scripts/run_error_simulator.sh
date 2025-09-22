@@ -14,6 +14,42 @@ PURPLE='\033[0;35m'
 CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 
+# Função para executar comando com timeout multiplataforma
+run_with_timeout() {
+    local duration="$1"
+    local command="$2"
+    
+    # Detectar qual comando de timeout está disponível
+    if command -v timeout >/dev/null 2>&1; then
+        timeout "$duration" $command
+    elif command -v gtimeout >/dev/null 2>&1; then
+        gtimeout "$duration" $command
+    else
+        # Fallback usando bash e kill
+        echo "Aviso: Usando timeout manual (timeout/gtimeout não disponível)"
+        $command &
+        local pid=$!
+        
+        # Converter duração para segundos (suporta formato como "10s", "30s")
+        local seconds=$(echo "$duration" | sed 's/s$//')
+        
+        # Aguardar pelo tempo especificado
+        sleep "$seconds"
+        
+        # Verificar se o processo ainda está rodando e matá-lo
+        if kill -0 "$pid" 2>/dev/null; then
+            echo "Tempo limite atingido, terminando processo..."
+            kill -TERM "$pid" 2>/dev/null
+            sleep 1
+            # Se ainda estiver rodando, forçar terminação
+            if kill -0 "$pid" 2>/dev/null; then
+                kill -KILL "$pid" 2>/dev/null
+            fi
+        fi
+        wait "$pid" 2>/dev/null || true
+    fi
+}
+
 # Função para mostrar banner
 show_banner() {
     echo -e "${BLUE}"
@@ -82,7 +118,7 @@ interactive_menu() {
         case $choice in
             1)
                 ensure_compiled
-                run_with_warning "timeout 10s ./bin/stack_overflow" \
+                run_with_warning "run_with_timeout 10s ./bin/stack_overflow" \
                     "Este comando causará stack overflow e pode travar o processo!"
                 ;;
             2)
@@ -116,7 +152,7 @@ interactive_menu() {
                 echo -e "${YELLOW}Digite [1-3]:${NC} "
                 read -r subleak
                 echo -e "${YELLOW}Use 'top' ou 'htop' em outro terminal para monitorar memória${NC}"
-                run_with_warning "timeout 15s ./bin/memory_leak $subleak" \
+                run_with_warning "run_with_timeout 15s ./bin/memory_leak $subleak" \
                     "Este comando causará vazamento de memória!"
                 ;;
             5)
@@ -137,7 +173,7 @@ interactive_menu() {
                 echo "2) Deadlock complexo (múltiplos mutex)"
                 echo -e "${YELLOW}Digite [1-2]:${NC} "
                 read -r subdeadlock
-                run_with_warning "timeout 30s ./bin/deadlock $subdeadlock" \
+                run_with_warning "run_with_timeout 30s ./bin/deadlock $subdeadlock" \
                     "Este comando pode travar indefinidamente devido ao deadlock!"
                 ;;
             7)
@@ -215,7 +251,7 @@ else
     case "$1" in
         stack_overflow)
             echo -e "${RED}Executando stack overflow...${NC}"
-            timeout 10s ./bin/stack_overflow
+            run_with_timeout 10s "./bin/stack_overflow"
             ;;
         segfault)
             option=${2:-1}
@@ -230,7 +266,7 @@ else
         memory_leak)
             option=${2:-1}
             echo -e "${RED}Executando memory leak (tipo $option)...${NC}"
-            timeout 10s ./bin/memory_leak "$option"
+            run_with_timeout 10s "./bin/memory_leak $option"
             ;;
         race_condition)
             option=${2:-1}
@@ -240,7 +276,7 @@ else
         deadlock)
             option=${2:-1}
             echo -e "${RED}Executando deadlock (tipo $option)...${NC}"
-            timeout 30s ./bin/deadlock "$option"
+            run_with_timeout 30s "./bin/deadlock $option"
             ;;
         core_dump)
             option=${2:-1}

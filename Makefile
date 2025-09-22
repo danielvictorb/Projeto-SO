@@ -11,6 +11,17 @@ THREAD_FLAGS = -pthread
 SRCDIR = src
 BINDIR = bin
 
+# Detectar comando de timeout disponível
+TIMEOUT_CMD := $(shell \
+	if command -v timeout >/dev/null 2>&1; then \
+		echo "timeout"; \
+	elif command -v gtimeout >/dev/null 2>&1; then \
+		echo "gtimeout"; \
+	else \
+		echo "echo 'Aviso: timeout não disponível, executando sem limite de tempo' &&"; \
+	fi \
+)
+
 # Lista de todos os executáveis
 TARGETS = stack_overflow segmentation_fault buffer_overflow memory_leak \
           race_condition deadlock core_dump
@@ -67,7 +78,7 @@ test-stack-overflow: $(BINDIR)/stack_overflow
 	@echo "AVISO: Este teste causará stack overflow!"
 	@echo "Executando em 3 segundos... (Ctrl+C para cancelar)"
 	@sleep 3
-	-timeout 10s ./$(BINDIR)/stack_overflow || echo "Teste de stack overflow executado"
+	-$(TIMEOUT_CMD) 10s ./$(BINDIR)/stack_overflow || echo "Teste de stack overflow executado"
 
 test-segfault: $(BINDIR)/segmentation_fault
 	@echo "=== TESTANDO SEGMENTATION FAULT ==="
@@ -87,7 +98,7 @@ test-memory-leak: $(BINDIR)/memory_leak
 	@echo "=== TESTANDO MEMORY LEAK ==="
 	@echo "Use 'top' ou 'htop' em outro terminal para monitorar o uso de memória"
 	@echo "Executando teste de vazamento por 10 segundos..."
-	-timeout 10s ./$(BINDIR)/memory_leak 1 || echo "Teste de memory leak executado"
+	-$(TIMEOUT_CMD) 10s ./$(BINDIR)/memory_leak 1 || echo "Teste de memory leak executado"
 
 test-race-condition: $(BINDIR)/race_condition
 	@echo "=== TESTANDO RACE CONDITION ==="
@@ -99,7 +110,7 @@ test-deadlock: $(BINDIR)/deadlock
 	@echo "Use Ctrl+C para terminar quando o deadlock ocorrer"
 	@echo "Executando em 3 segundos... (Ctrl+C para cancelar)"
 	@sleep 3
-	-timeout 30s ./$(BINDIR)/deadlock 1 || echo "Teste de deadlock executado (ou tempo limite atingido)"
+	-$(TIMEOUT_CMD) 30s ./$(BINDIR)/deadlock 1 || echo "Teste de deadlock executado (ou tempo limite atingido)"
 
 test-core-dump: $(BINDIR)/core_dump
 	@echo "=== TESTANDO CORE DUMP ==="
