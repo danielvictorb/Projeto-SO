@@ -1,0 +1,54 @@
+# Docker Compose para o Emulador de Erros de Execução
+# 
+# Facilita a execução do ambiente isolado com configurações
+# adequadas para demonstração de erros de sistema.
+
+version: '3.8'
+
+services:
+  error-simulator:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    image: error-simulator:latest
+    container_name: error-simulator-container
+    
+    # Configurações para permitir debugging e core dumps
+    cap_add:
+      - SYS_PTRACE
+    security_opt:
+      - seccomp:unconfined
+    
+    # Limites de recursos para demonstração
+    mem_limit: 1g
+    memswap_limit: 1g
+    
+    # Monta diretório para salvar core dumps
+    volumes:
+      - ./core_dumps:/app/core_dumps
+      - type: tmpfs
+        target: /tmp
+        tmpfs:
+          size: 100M
+    
+    # Configurações de ambiente
+    environment:
+      - MALLOC_CHECK_=2
+      - MALLOC_PERTURB_=165
+      - CORE_PATTERN=/app/core_dumps/core.%e.%p.%t
+    
+    # Executa de forma interativa
+    stdin_open: true
+    tty: true
+    
+    # Comando padrão
+    command: ["./scripts/run_error_simulator.sh"]
+    
+    # Network mode para isolamento
+    network_mode: "bridge"
+    
+    # Labels para organização
+    labels:
+      - "project=sistema-operacional"
+      - "type=error-simulator"
+      - "environment=educational"
