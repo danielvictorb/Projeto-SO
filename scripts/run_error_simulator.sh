@@ -132,6 +132,11 @@ interactive_menu() {
                 ;;
             6)
                 ensure_compiled
+                echo -e "${CYAN}Escolha o tipo de deadlock:${NC}"
+                echo "1) Deadlock simples (2 mutex)"
+                echo "2) Deadlock complexo (múltiplos mutex)"
+                echo -e "${YELLOW}Digite [1-2]:${NC} "
+                read -r subdeadlock
                 run_with_warning "timeout 30s ./bin/deadlock $subdeadlock" \
                     "Este comando pode travar indefinidamente devido ao deadlock!"
                 ;;
